@@ -1,74 +1,123 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React, { useState, useEffect } from "react";
+import { Text, View, StyleSheet, TouchableOpacity } from "react-native";
+import { LightSensor } from "expo-sensors";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export default function App() {
+  const [lightLevel, setLightLevel] = useState<number | null>(null);
+  const [musicType, setMusicType] = useState<string>("");
+  const [backgroundColor, setBackgroundColor] = useState<string>("#1c1c1c");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-export default function HomeScreen() {
+  const musicLinks = {
+    calm: "https://www.youtube.com/watch?v=5qap5aO4i9A", // Lo-fi beats
+    normal: "https://www.youtube.com/watch?v=JGwWNGJdvx8", // Ed Sheeran
+    upbeat: "https://www.youtube.com/watch?v=fRh_vgS2dFE", // Justin Bieber
+  };
+
+  const getBackgroundColor = (illuminance: number): string => {
+    if (illuminance <= 10) return "#4CAF50"; // Escuro
+    if (illuminance > 10 && illuminance <= 50) return "#FFC107"; // Verde
+    return "#FF0000"; // Amarelo
+  };
+
+  useEffect(() => {
+    let subscription;
+
+    if (LightSensor) {
+      // Ativando o sensor de luz
+      subscription = LightSensor.addListener((data) => {
+        setLightLevel(data.illuminance);
+        setBackgroundColor(getBackgroundColor(data.illuminance));
+      });
+    } else {
+      // Sensor não disponível
+      setErrorMessage("Sensor de luz não é suportado nesta plataforma.");
+    }
+
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    // Atualiza o tipo de música com base na luz
+    if (lightLevel !== null) {
+      if (lightLevel <= 10) {
+        setMusicType("Calma");
+      } else if (lightLevel > 10 && lightLevel <= 50) {
+        setMusicType("Normal");
+      } else {
+        setMusicType("Agitada");
+      }
+    }
+  }, [lightLevel]);
+
+  if (errorMessage) {
+    return (
+      <View style={[styles.container, { backgroundColor }]}>
+        <Text style={styles.error}>{errorMessage}</Text>
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={[styles.container, { backgroundColor }]}>
+      <Text style={styles.title}>Sensor de Luz e Música</Text>
+      <Text style={styles.text}>
+        Nível de Luz: {lightLevel !== null ? lightLevel.toFixed(1) : "Carregando..."}
+      </Text>
+      <Text style={styles.text}>Tipo de Música: {musicType || "Carregando..."}</Text>
+      {musicType && (
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => {
+            const url = musicLinks[musicType.toLowerCase() as keyof typeof musicLinks];
+            if (url) {
+              window.open(url, "_blank");
+            }
+          }}
+        >
+          <Text style={styles.buttonText}>Ouvir no YouTube</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
   },
-  stepContainer: {
-    gap: 8,
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 16,
+  },
+  text: {
+    fontSize: 18,
+    color: "#fff",
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  error: {
+    fontSize: 18,
+    color: "red",
+    textAlign: "center",
+  },
+  button: {
+    backgroundColor: "#4CAF50",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
